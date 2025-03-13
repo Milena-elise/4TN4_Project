@@ -8,7 +8,7 @@ from matplotlib.patches import Rectangle
 from matplotlib.lines import Line2D
 from matplotlib.collections import PatchCollection
 
-image_path = 'images/PandP_handwritten.jpeg'
+image_path = 'images/PandP_typed.jpeg'
 
 def grayscale(a):
   '''
@@ -79,7 +79,10 @@ def line_segment(a):
   '''
   a - nparray of binary image
   returns - boundaries of each line
+
+  function adapted from: https://medium.com/@magodiasanket/ocr-optical-character-recognition-from-scratch-using-deep-learning-a6a599963d71
   '''
+
   
   coords=[] #coordinates with text, on edge change
   xy_rect = [] # line detection info
@@ -174,12 +177,41 @@ def char_segment(line, image):
     if len(coo)>0:
       coords.append(coo)
 
-  print(spaces)
   return xy_rect, spaces
 
 def get_image_segment(image, rect):
    return image[rect[0]:rect[1],rect[2]:rect[3]]
 
+def plot_segments(binary_image):
+  # plot segmented imaged for visualization
+  fig2 = plt.figure()
+
+  ax4 = plt.subplot(1,2,2)
+  imgplot = plt.imshow(binary_image, cmap='grey')
+  plt.title("characters")
+
+  patch = []
+  rectangles = line_segment(binary_image)
+
+  for rect in rectangles:
+    chars, spaces = char_segment(rect, binary_image)
+    char_patches = []
+    for char in chars:
+      char_patches.append(Rectangle([char[2], char[0]], char[3]-char[2], char[1]-char[0], fill=False))
+    
+    collect1 = PatchCollection(char_patches, facecolor='none', ec='red', linewidth=1)
+    for space in spaces:
+      ax4.add_line(Line2D([space, space], [chars[0][0], chars[0][1]], color='blue'))
+    ax4.add_collection(collect1)
+    patch.append(Rectangle([rect[2], rect[0]], rect[3]-rect[2], rect[1]-rect[0], fill=False))
+
+  ax3 = plt.subplot(1,2,1)
+  imgplot = plt.imshow(binary_image, cmap='grey')
+  plt.title("lines")
+  collect = PatchCollection(patch, facecolor='none', ec='red', linewidth=1)
+  ax3.add_collection(collect)
+  plt.show()
+   
    
 image=Image.open(image_path)# input image location
 image=np.asarray(image)
@@ -201,34 +233,4 @@ ax2 = plt.subplot(2,2,3)
 imgplot = plt.imshow(binary_image, cmap='grey')
 plt.title("binary")
 
-
-# plot segmented imaged for visualization
-fig2 = plt.figure()
-
-ax4 = plt.subplot(1,2,2)
-imgplot = plt.imshow(binary_image, cmap='grey')
-plt.title("characters")
-
-patch = []
-rectangles = line_segment(binary_image)
-
-for rect in rectangles:
-  chars, spaces = char_segment(rect, binary_image)
-  char_patches = []
-  for char in chars:
-     char_patches.append(Rectangle([char[2], char[0]], char[3]-char[2], char[1]-char[0], fill=False))
-  
-  collect1 = PatchCollection(char_patches, facecolor='none', ec='red', linewidth=1)
-  for space in spaces:
-    ax4.add_line(Line2D([space, space], [chars[0][0], chars[0][1]], color='blue'))
-  ax4.add_collection(collect1)
-  patch.append(Rectangle([rect[2], rect[0]], rect[3]-rect[2], rect[1]-rect[0], fill=False))
-
-ax3 = plt.subplot(1,2,1)
-imgplot = plt.imshow(binary_image, cmap='grey')
-plt.title("lines")
-collect = PatchCollection(patch, facecolor='none', ec='red', linewidth=1)
-ax3.add_collection(collect)
-
-
-plt.show()
+plot_segments(binary_image)
