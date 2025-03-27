@@ -266,10 +266,8 @@ def char_segment(line, image):
 
     if len(coo)>0:
       coords.append(coo)
-  if(len(xy_rect) != 0):
-    av_char = char_width_sum/len(xy_rect)
-  else:
-     av_char = 0
+
+  av_char = char_width_sum/len(xy_rect)
   true_spaces = []
   for i in range(len(space_size)):
      if space_size[i] > 0.6*av_char:
@@ -344,15 +342,17 @@ def get_image_segment(image, rect):
    return image[rect[0]:rect[1],rect[2]:rect[3]]
 
 def plot_segments(binary_image):
-  #plot segmented imaged for visualization
-  fig2 = plt.figure()
+  # plot segmented imaged for visualization
+  # fig2 = plt.figure()
 
-  ax4 = plt.subplot(1,2,2)
-  imgplot = plt.imshow(binary_image, cmap='grey')
-  plt.title("characters")
+  # ax4 = plt.subplot(1,2,2)
+  # imgplot = plt.imshow(binary_image, cmap='grey')
+  # plt.title("characters")
   patch = []
   rectangles = line_segment(binary_image)
 
+  images_for_csv = []
+  labels = []
 
   #rectangles = rectangles[3]
   for rect in rectangles:
@@ -365,53 +365,108 @@ def plot_segments(binary_image):
 
       #fig3 = plt.figure()
       char_im = char_seg_2_28(binary_image, char)
+      rbg_image = cv.cvtColor(char_im.astype('uint8'), cv.COLOR_GRAY2RGB)
+      label = pytesseract.image_to_string(rbg_image, lang='eng', config='--psm 10' )
+      add = False
+      print("\nGiven Label: ")
+      print(label)
+      if label == '0':
+        print('found 0')
+        print(ord(label))
+      print("Added label")
+      for c in list(map(ord,label)):
+          new_c = -1 # value of 0-9 for number, 10-35 for letter
+          if c == 48:
+            c = 111
+            new_c = c-97+10
+            print(chr(c))
+            add = True
+          elif (c>48 and c<=57): ## numbers 0-9"
+            
+            new_c = c+48
+            print(chr(c))
+            add = True
+            break
 
+
+          elif(c>=65 and c<=90): # upercase letters
+            new_c = c-65+10
+            print(chr(c))
+            add = True
+            break
+
+          elif(c>=97 and c<=122): #lowercase letters
+            new_c = c-97+10
+            print(chr(c))
+            add = True
+            break
+          elif c == 124:
+            c=108
+            new_c = c-97+10
+            print(chr(c))
+            add = True
+          else:
+             print("not added: " + label)
+      if add == False:
+         print("added nothing")
+      
+      if add == True:
+        plt.imshow(char_im)
+        plt.show()
     
       #img = plt.imshow(char_im, cmap='grey')
-      #plt.show()
+      #pplt.show()
       #images_for_csv.append(char_im.reshape(-1).astype('uint8'))
 
       #plt.close()
   
-    collect1 = PatchCollection(char_patches, facecolor='none', ec='red', linewidth=1)
-    for space in spaces:
-      ax4.add_line(Line2D([space, space], [rect[0], rect[1]], color='blue'))
-    ax4.add_collection(collect1)
-    patch.append(Rectangle([rect[2], rect[0]], rect[3]-rect[2], rect[1]-rect[0], fill=False))
+    
+    np.savetxt("PandP_chars.csv", images_for_csv)
 
-  ax3 = plt.subplot(1,2,1)
-  imgplot = plt.imshow(binary_image, cmap='grey')
-  plt.title("lines")
-  collect = PatchCollection(patch, facecolor='none', ec='red', linewidth=1)
-  ax3.add_collection(collect)
-  plt.show()
+   
+image=Image.open(image_path)# input image location
+image=np.asarray(image)
 
-from pdf2image import convert_from_path
 
-# Store Pdf with convert_from_path function
-#images = convert_from_path(image_path)
-images = [1]
+gray_image=grayscale(image) # rgb to grayscale conversion
 
-for i in range(len(images)):
-      # Save pages as images in the pdf
-    #images[i].save('page'+ str(i) +'.jpg', 'JPEG')
+
+
+binary_image = binary(gray_image)
+# 
+
+plot_segments(binary_image)
+#rbg_image = cv.cvtColor(binary_image.astype('uint8'), cv.COLOR_GRAY2RGB)
+#label = pytesseract.image_to_string(rbg_image, lang='eng', )
+'''
+text = reader.readtext(rbg_image)
+label = []
+for row in text:
+   _, line, _l = row
+   label.append(line)
+
+#label = (np.array2string((np.array(label))))
+#print(int(label))
+#labels.append((label))
+labels = []
+for string in label:
+  for c in list(map(ord,string)):
+    new_c = -1 # value of 0-9 for number, 10-35 for letter
+    if (c>=48 and c<=57): ## numbers 0-9"
+      new_c = c=48
+
+
+    elif(c>=65 and c<=90): # upercase letters
+      new_c = c-65+10
+
+
+    elif(c>=97 and c<=122):
+      new_c = c-97+10
+
+      
+    if new_c !=-1:
+      labels.append(new_c)
   
-    image=Image.open(image_path)# input image location
-    image=np.asarray(image)
-
-    # plot processed images
-    fig = plt.figure()
-    ax1 = plt.subplot(2,2,1)
-    imgplot = plt.imshow(image)
-    plt.title("Original")
-
-    gray_image=grayscale(image) # rgb to grayscale conversion
-
-    ax1 = plt.subplot(2,2,2)
-    imgplot = plt.imshow(gray_image, cmap='grey')
-    plt.title("Greyscale")
-
-    binary_image = binary(gray_image)
-    # 
-
-    plot_segments(binary_image)
+np.savetxt("PandP_labels.csv", labels)'
+'''
+#print(label)

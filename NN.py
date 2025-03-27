@@ -3,10 +3,32 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
-mnist = tf.keras.datasets.mnist # dataset
+#mnist = tf.keras.datasets.mnist # dataset
 
-(x_train, y_train), (x_test, y_test) = mnist.load_data() # extrac data
+#(x_train, y_train), (x_test, y_test) = mnist.load_data() # extrac data
 
+#print(x_train[0])
+#print(y_train[0])
+
+x_raw = np.loadtxt('PandP_chars.csv')
+x_train = x_raw.astype('uint8')
+
+
+y_train = np.loadtxt('PandP_labels.csv')
+y_train = y_train.astype('int')
+x_train = []
+for i in range(len(y_train)):
+    x_train.append(np.reshape(x_raw[i], (28,28)))
+
+print(np.shape(x_train[0]))
+print(y_train[0])
+
+fig3 = plt.figure()
+img = plt.imshow(x_train[0], cmap='grey')
+print(chr(y_train[0]))
+plt.show()
+
+'''
 x_train = tf.keras.utils.normalize(x_train, axis = 1)
 x_test = tf.keras.utils.normalize(x_test, axis = 1)
 
@@ -49,3 +71,4 @@ print(f'The result is likely: {np.argmax(prediction)}')
 plt.imshow(img.squeeze(), cmap=plt.cm.binary)  # Remove batch and color dimensions
 
 plt.show()
+'''
