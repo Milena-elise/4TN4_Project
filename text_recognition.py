@@ -13,7 +13,7 @@ import tensorflow as tf
 #import easyocr
 
 image_path = 'images/PandP_C1/P9.png'
-model = tf.keras.models.load_model('charCNN.keras')
+model = tf.keras.models.load_model('models/charCNN.keras')
 #reader = easyocr.Reader(['en'], gpu=False, )
 
 def grayscale(a):
@@ -366,7 +366,6 @@ def plot_segments(binary_image, orig_image):
     for char in chars:
       char_patches.append(Rectangle([char[2], char[0]], char[3]-char[2], char[1]-char[0], fill=False))
 
-      #fig3 = plt.figure()
       char_im = char_seg_2_28(orig_image, char)
       prediction = model.predict(char_im.reshape(-1, 28,28,1)/255.0)
       c = np.argmax(prediction)
@@ -384,9 +383,8 @@ def plot_segments(binary_image, orig_image):
       img = plt.imshow(char_im, cmap='grey')
       plt.title(f'The result is likely: {chr(new_c)}')
       plt.show()
-      #images_for_csv.append(char_im.reshape(-1).astype('uint8'))
 
-      #plt.close()
+
   
     collect1 = PatchCollection(char_patches, facecolor='none', ec='red', linewidth=1)
     for space in spaces:

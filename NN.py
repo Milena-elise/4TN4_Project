@@ -11,7 +11,7 @@ import pandas as pd
 #print(x_train[0])
 #print(y_train[0])
 
-data = pd.read_csv("typedCSV.csv") # load data
+data = pd.read_csv("data/typedCSV.csv") # load data
 data = data.sample(frac=1) # randomize
 labels=data['label']
 data = data.iloc[:,1:]
@@ -65,7 +65,7 @@ x_test = tf.keras.utils.normalize(x_test, axis = 1)
 
 # Build a more accurate model
 model = tf.keras.models.Sequential([
-    tf.keras.layers.Flatten(input_shape=(28, 28, 1)),  # Flatten image to 1D
+    tf.keras.layers.Flatten(input_shape=(28, 28)),  # Flatten image to 1D
     
     # tf.keras.layers.Dense(600, activation='relu'),  # Increase neurons
     # tf.keras.layers.BatchNormalization(),  # Normalize activations
@@ -92,10 +92,10 @@ accuracy, loss = model.evaluate(x_test, y_test)
 print(accuracy)
 print(loss)
 
-model.save('chars.keras')  # Recommended Keras format
+model.save('model/chars.keras')  # Recommended Keras format
 
 # Load trained model
-model = tf.keras.models.load_model('chars.keras')
+model = tf.keras.models.load_model('model/chars.keras')
 
 for i in range(len(y_train)):
     img = x_train[i] # Load as grayscale

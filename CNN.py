@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
-data = pd.read_csv("typedCSV.csv")
+data = pd.read_csv("data/typedCSV.csv")
 data = data.sample(frac=1)
 labels=data['label']
 data = data.iloc[:,1:]
@@ -64,7 +64,7 @@ history = model.fit(x_train, y_train,
                     callbacks=[callbacks])
 
 
-model.save("charCNN.keras")
+model.save("models/charCNN.keras")
 
 '''
 fig, ax = plt.subplots(2,1)
