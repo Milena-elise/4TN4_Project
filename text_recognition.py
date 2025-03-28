@@ -9,9 +9,11 @@ from matplotlib.patches import Rectangle
 from matplotlib.lines import Line2D
 from matplotlib.collections import PatchCollection
 from pytesseract import pytesseract 
+import tensorflow as tf
 #import easyocr
 
-image_path = 'images/PandP_typed_nonserif.jpeg'
+image_path = 'images/PandP_C1/P9.png'
+model = tf.keras.models.load_model('charCNN.keras')
 #reader = easyocr.Reader(['en'], gpu=False, )
 
 def grayscale(a):
@@ -316,15 +318,16 @@ def downsample_image(image, factor):
 
 def char_seg_2_28(image, char):
     out_size = 28
+    border_min = 1
     char_im = get_image_segment(image, char)
     mn = np.shape(char_im)
     m = mn[0]
     n = mn[1]
-    if m < 28 and n < 28:
-      upsample = int(np.floor(min(out_size/m, out_size/n)))
+    if m < out_size-border_min and n < out_size-border_min:
+      upsample = int(np.floor(min((out_size-border_min)/m, (out_size-border_min)/n)))
       char_im = upsample_image(char_im, upsample)
-    elif m > 28 or n > 28:
-      downsample = int(np.ceil(max(m/out_size, n/out_size)))
+    elif m > out_size-border_min or n > out_size-border_min:
+      downsample = int(np.ceil(max(m/(out_size-border_min), n/(out_size-border_min))))
       char_im = downsample_image(char_im, downsample)
     mn = np.shape(char_im)
     m = mn[0]
@@ -343,7 +346,7 @@ def char_seg_2_28(image, char):
 def get_image_segment(image, rect):
    return image[rect[0]:rect[1],rect[2]:rect[3]]
 
-def plot_segments(binary_image):
+def plot_segments(binary_image, orig_image):
   #plot segmented imaged for visualization
   fig2 = plt.figure()
 
@@ -364,11 +367,23 @@ def plot_segments(binary_image):
       char_patches.append(Rectangle([char[2], char[0]], char[3]-char[2], char[1]-char[0], fill=False))
 
       #fig3 = plt.figure()
-      char_im = char_seg_2_28(binary_image, char)
+      char_im = char_seg_2_28(orig_image, char)
+      prediction = model.predict(char_im.reshape(-1, 28,28,1)/255.0)
+      c = np.argmax(prediction)
 
-    
-      #img = plt.imshow(char_im, cmap='grey')
-      #plt.show()
+      if (c>=0 and c<=9): ## numbers 0-9"
+        new_c = c+48
+
+      elif(c>=10 and c<=35): # upercase letters
+        new_c = c-10+65
+
+      elif(c>=36 and c<=61): # lowercase letters
+        new_c = c-36+97
+
+
+      img = plt.imshow(char_im, cmap='grey')
+      plt.title(f'The result is likely: {chr(new_c)}')
+      plt.show()
       #images_for_csv.append(char_im.reshape(-1).astype('uint8'))
 
       #plt.close()
@@ -414,4 +429,4 @@ for i in range(len(images)):
     binary_image = binary(gray_image)
     # 
 
-    plot_segments(binary_image)
+    plot_segments(binary_image, gray_image)
