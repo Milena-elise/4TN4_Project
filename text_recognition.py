@@ -9,9 +9,143 @@ from matplotlib.patches import Rectangle
 from matplotlib.lines import Line2D
 from matplotlib.collections import PatchCollection
 import tensorflow as tf
+from gtts import gTTS
+import os
+
+import nltk
+from nltk.corpus import words
+
+# Download English words list if needed
+nltk.download('words')
+
+# Get English vocabulary set
+english_words = set(words.words())
+
+def is_real_word(word):
+    """Check if a word exists in English dictionary (case-insensitive)"""
+    return word.lower() in english_words
+
+def correct_ending_o_or_0(text):
+    """
+    Converts ending 'o' or '0' to '.' only if it's not a real word.
+    If '0' is at the end, it is first converted to 'o' before checking.
+    Preserves all other text exactly.
+    """
+    paragraphs = text.split('\n')
+    corrected = []
+    
+    for para in paragraphs:
+        words = para.split()  # Split paragraph into words
+        corrected_words = []
+        
+        for word in words:
+            # Check if word ends with 'o' or '0'
+            if word[-1].lower() == 'o' or word[-1] == '0':
+                # If last character is '0', replace it with 'o' for validation
+                if word[-1] == '0':
+                    word = word[:-1] + 'o'
+                
+                # Check if it's a real word (excluding punctuation)
+                clean_word = word.rstrip('.,;!?\'"')
+                if not is_real_word(clean_word):
+                    word = word[:-1] + '.'  # Replace final 'o' or '0' with '.'
+            
+            corrected_words.append(word)
+        
+        # Join words back into a corrected paragraph
+        corrected.append(' '.join(corrected_words))
+    
+    return '\n'.join(corrected)
 
 
-image_path = 'images/PandP_C1/P1.png' #path to image
+def correct_text(ocr_text):
+    """
+    Corrects OCR output with:
+    1. Smart 0→o substitution (only within words)
+    2. Converts ending 0 to period per paragraph
+    3. ;→i substitution in words
+    4. Punctuation and capitalization fixes
+    """
+
+    ocr_text = ocr_text.replace("''", '"')
+    ocr_text = ocr_text.replace("'", ',')
+
+
+    ocr_text = correct_ending_o_or_0(ocr_text)
+
+    # Split into paragraphs
+    paragraphs = ocr_text.split('\n')
+    corrected_paragraphs = []
+    
+    for para in paragraphs:
+        # Convert ending 0 to period if it's at paragraph end
+        para = para.rstrip()
+        if len(para) > 0 and para[-1] == '0':
+            para = para[:-1] + '.'
+            
+        words = para.split()
+        corrected_words = []
+        
+        for word in words:
+            # Only modify if it's likely a word (contains letters)
+            if any(c.isalpha() for c in word):
+                # Fix 0→o when surrounded by letters
+                if '0' in word:
+                    new_word = []
+                    for i, c in enumerate(word):
+                        if c == '0' and ((i > 0 and word[i-1].isalpha()) or 
+                                        (i < len(word)-1 and word[i+1].isalpha())):
+                            new_word.append('o')
+                        else:
+                            new_word.append(c)
+                    word = ''.join(new_word)
+                
+                # Fix ;→i in words
+                if ';' in word:
+                    word = word.replace(';', 'i')
+            
+            corrected_words.append(word)
+        
+        corrected_paragraphs.append(' '.join(corrected_words))
+    
+    # Rejoin paragraphs
+    text = '\n'.join(corrected_paragraphs)
+    
+    # Handle punctuation and capitalization
+    chars = list(text)
+    sentence_start = True  # Indicates if the next word should start a sentence
+    in_proper_noun = False  # Tracks if the current word is a proper noun
+    
+    for i in range(len(chars)):
+        current = chars[i]
+        prev_char = chars[i-1] if i > 0 else ' '
+        
+        # If it's a letter and we are at the start of a sentence, capitalize it
+        if sentence_start and current.isalpha():
+            chars[i] = current.upper()
+            sentence_start = False  # After capitalizing, next word won't be a sentence start
+            
+        # If we are not at the start of the sentence, convert it to lowercase
+        elif current.isalpha():
+            chars[i] = current.lower()
+            
+        # Reset sentence_start when encountering punctuation marks (end of sentence).
+        if current in ['.', '!', '?']:
+            sentence_start = True
+            # Skip any whitespace after punctuation
+            j = i + 1
+            while j < len(chars) and chars[j].isspace():
+                j += 1
+            # Capitalize the first letter of the next word (start of the sentence)
+            if j < len(chars) and chars[j].isalpha():
+                chars[j] = chars[j].upper()
+                i = j
+    
+    text = ''.join(chars)
+
+    return text
+
+image_path = 'data/PandP_C1/P1.png' #path to image
 model = tf.keras.models.load_model('models/charCNN.keras') #path to model
 
 def grayscale(a):
@@ -64,24 +198,26 @@ def line_coords(coords):
 
     return [ymin,ymax+2,xmin+1,xmax]
 
-def char_coords(coords, line):
-    '''
-    Isolate bounding cooridnates of characters within a line semgment
-    coords - cooridinate of edges in character
-    returns character boundry rectangle
-    '''
-    xmin=coords[0][0][1]
-    xmax=coords[-1][0][1]
-    ymin=20000
-    ymax=0
-    for i in coords:
-        for j in i:
-            if j[0] > ymax:
-                ymax=j[0]
-            if j[0] < ymin:
-                ymin=j[0]
 
-    return [line[0]+ymin-1,line[0]+ymax+1, line[2]+xmin,line[2]+xmax+2]
+def char_coords(coords, line):
+    ymin = min([j[0] for i in coords for j in i])
+    ymax = max([j[0] for i in coords for j in i])
+    xmin = min([j[1] for i in coords for j in i])
+    xmax = max([j[1] for i in coords for j in i])
+
+    # Ensure a minimum height and width for punctuation
+    min_height = 8  # Adjust as needed
+    min_width = 8  # Adjust as needed
+
+    if ymax - ymin < min_height:
+        ymin -= (min_height - (ymax - ymin)) // 2
+        ymax += (min_height - (ymax - ymin)) // 2
+
+    if xmax - xmin < min_width:
+        xmin -= (min_width - (xmax - xmin)) // 2
+        xmax += (min_width - (xmax - xmin)) // 2
+
+    return [line[0] + ymin - 1, line[0] + ymax + 1, line[2] + xmin, line[2] + xmax + 2]
 
 def line_segment(a):
   '''
@@ -414,12 +550,30 @@ def plot_segments(binary_image, orig_image):
       elif(c>=36 and c<=61): # lowercase letters
         new_c = c-36+97
 
+      elif(c==62): 
+        new_c = ord('.')
+
+      elif(c==63): 
+        new_c = ord(',')
+
+      elif(c==64): 
+        new_c = ord("'")
+
+      elif(c==65):
+        new_c = ord(';')
+
+      elif(c==66):
+        new_c = ord('!')
+
+      elif(c==67):
+        new_c = ord('?')
+
+
       # uncomment if you want to see character image
-      '''
-      img = plt.imshow(char_im, cmap='grey')
-      plt.title(f'The result is likely: {chr(new_c)}')
-      plt.show()'
-      '''
+      # img = plt.imshow(char_im, cmap='grey')
+      # plt.title(f'The result is likely: {chr(new_c)}')
+      # plt.show()
+
 
       # add detected character
       text_detected.append(chr(new_c))
@@ -437,8 +591,18 @@ def plot_segments(binary_image, orig_image):
     line_patches.append(Rectangle([line_rect[2], line_rect[0]], line_rect[3]-line_rect[2], line_rect[1]-line_rect[0], fill=False))
   
   # print output text
-  print(''.join(text_detected))
-  # tode dump this to .txt file
+  output_txt = ''.join(text_detected)
+  print(output_txt + '\n')
+
+  output_txt = correct_text(output_txt)
+
+  print(output_txt + '\n')
+
+
+  output_path = 'output.txt'
+  with open(output_path, 'w') as f:
+      f.write(output_txt)
+  print(f"Text saved to: {output_path}")
   
   # plot image with line segments
   ax3 = plt.subplot(1,2,1)
@@ -449,7 +613,69 @@ def plot_segments(binary_image, orig_image):
   plt.show()
 
 
-# main code
+
+def contextual_correction(char, position_in_word, word_position_in_line):
+    """
+    Handles ALL character corrections in one place:
+    - Fixes universal misclassifications (e.g., '1' → 'l')
+    - Applies word-aware fixes (e.g., '0' → 'o' only inside words)
+    - Manages uppercase/lowercase rules
+    """
+ 
+    # Word-aware fixes
+    if position_in_word > 0:  # Only modify if inside a word
+        if char == '0': 
+            char = 'o'  #'0' → 'o'
+        elif char == ';':
+            char = 'i'
+
+    # Case handling
+    if char.isupper():
+        if position_in_word > 0:  # Lowercase if not word-start
+            char = char.lower()
+        elif word_position_in_line == 0:  # Keep uppercase if line-start (proper noun)
+            pass
+        else:  # Optional: lowercase standalone capitals
+            char = char.lower()
+
+    return char
+
+
+
+
+def reconstruct_text_with_corrections(text_detected):
+    """
+    Reconstructs the final text with corrections:
+    - Handles spaces and newlines properly
+    - Applies contextual fixes
+    """
+    corrected_text = []
+    current_word = []
+    word_position = 0  # Track word position in line
+    
+    for char in text_detected:
+        if char == ' ' or char == '\n':  # Word boundary
+            # Process the completed word
+            for i, c in enumerate(current_word):
+                corrected_char = contextual_correction(c, i, word_position)
+                corrected_text.append(corrected_char)
+            
+            corrected_text.append(char)
+            current_word = []
+            word_position += 1 if char == ' ' else 0  # New line resets word count
+        else:
+            current_word.append(char)
+    
+    return ''.join(corrected_text)
+
+
+
+
+
+
+
+
+####################################################################### main code
 image=Image.open(image_path)# input image location
 image=np.asarray(image)
 
@@ -468,3 +694,30 @@ plt.title("Greyscale")
 binary_image = binary(gray_image)
 
 plot_segments(binary_image, gray_image)
+
+
+
+
+
+# Read the saved text
+with open('output.txt', "r", encoding="utf-8") as file:
+    text = file.read()
+
+# Convert text to speech
+tts = gTTS(text=text, lang="en")
+speech_file = "output_audio.mp3"
+tts.save(speech_file)
+
+# Play the audio file (this works on most systems)
+# os.system(f"start {speech_file}")  # Windows
+# os.system(f"afplay {speech_file}")  # macOS
+# os.system(f"mpg321 {speech_file}")  # Linux
+
+
+
+
+
+
+
+
+
