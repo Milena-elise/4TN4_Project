@@ -44,6 +44,61 @@ def binary(a, T=200):# takes np array image
             m[i][j]=0
   return m
 
+def erosion(a, size):
+  erod_sse = np.ones((3,3))
+  
+  mn = np.shape(a)
+  m = mn[0]
+  n = mn[1]
+  g = np.zeros((m,n))
+  a = a/255
+
+  for i in range(m):
+    for j in range(n):
+      sum = 0
+      for row in range(size):
+        for col in range(size):
+          p = int(i-(size-1)/2-1+row)
+          q = int(j-(size-1)/2-1+col)
+                    
+          if p<=0 or p>m or q<=0 or q>n: # out of image bounds
+            continue
+                   
+          else:
+            sum =sum+a[p,q]*erod_sse[row,col]
+  
+          if sum == size*size:
+            g[i,j] = 255 # assign to output val
+  
+  return g
+
+def dilation(a, size):
+  erod_sse = np.ones((3,3))
+  
+  mn = np.shape(a)
+  m = mn[0]
+  n = mn[1]
+  g = np.zeros((m,n))
+  a = a/255
+
+  for i in range(m):
+    for j in range(n):
+      sum = 0
+      for row in range(size):
+        for col in range(size):
+          p = int(i-(size-1)/2-1+row)
+          q = int(j-(size-1)/2-1+col)
+                    
+          if p<=0 or p>m or q<=0 or q>n: # out of image bounds
+            continue
+                   
+          else:
+            sum =sum+a[p,q]*erod_sse[row,col]
+  
+          if sum != 0:
+            g[i,j] = 255 # assign to output val
+  
+  return g
 
 def line_coords(coords):
     '''
@@ -373,7 +428,7 @@ def plot_segments(binary_image, orig_image):
   imgplot = plt.imshow(binary_image, cmap='grey')
   plt.title("characters")
 
-
+  
   line_patches = [] # for overlaying line detection
   text_detected = [] # string of text found
   
@@ -388,6 +443,7 @@ def plot_segments(binary_image, orig_image):
     char_prev = char_borders[0][2]# end of previos character
     
     for char in char_borders:
+      
 
       # add in spaces where applicable
       if space_i != -1 and spaces and (spaces[space_i] <= char[2] and spaces[space_i] > char_prev):
@@ -446,12 +502,13 @@ def plot_segments(binary_image, orig_image):
   plt.title("lines")
   line_collection = PatchCollection(line_patches, facecolor='none', ec='red', linewidth=1)
   ax3.add_collection(line_collection)
-  plt.show()
-
+  #plt.show()
+  
 
 # main code
 image=Image.open(image_path)# input image location
 image=np.asarray(image)
+
 
 # plot processed images
 fig = plt.figure()
@@ -461,10 +518,12 @@ plt.title("Original")
 
 gray_image=grayscale(image) # rgb to grayscale conversion
 
-ax1 = plt.subplot(1,2,2)
-imgplot = plt.imshow(gray_image, cmap='grey')
-plt.title("Greyscale")
 
 binary_image = binary(gray_image)
+erod_image = erosion(binary_image, 1)
+
+ax1 = plt.subplot(1,2,2)
+imgplot = plt.imshow(binary_image, cmap='grey')
+plt.title("binary")
 
 plot_segments(binary_image, gray_image)
