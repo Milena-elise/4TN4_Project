@@ -16,6 +16,7 @@ import nltk
 from nltk.corpus import words
 
 # Download English words list if needed
+
 nltk.download('words')
 
 # Get English vocabulary set
@@ -145,7 +146,7 @@ def correct_text(ocr_text):
 
     return text
 
-image_path = 'data/PandP_C1/P1.png' #path to image
+image_path = 'images/PandP_typed_nonserif.jpeg' #path to image
 model = tf.keras.models.load_model('models/charCNN.keras') #path to model
 
 def grayscale(a):
@@ -162,7 +163,7 @@ def grayscale(a):
   return m
 
 
-def binary(a, T=200):# takes np array image
+def binary(a, T=150):# takes np array image
   '''
   Convert greyscale to binary image
   a - numpy array of greyscale image
@@ -178,6 +179,61 @@ def binary(a, T=200):# takes np array image
             m[i][j]=0
   return m
 
+def erosion(a, size1, size2):
+  erod_sse = np.ones((size1,size2))
+  
+  mn = np.shape(a)
+  m = mn[0]
+  n = mn[1]
+  g = np.zeros((m,n))
+  a = (255-a)/255
+
+  for i in range(m):
+    for j in range(n):
+      sum = 0
+      for row in range(size1):
+        for col in range(size2):
+          p = int(i-(size1-1)/2-1+row)
+          q = int(j-(size2-1)/2-1+col)
+                    
+          if p<0 or p>=m or q<0 or q>=n: # out of image bounds
+            continue
+                   
+          else:
+            sum =sum+a[p,q]*erod_sse[row,col]
+  
+          if sum == size1*size2:
+            g[i,j] = 255 # assign to output val
+  
+  return 255*np.ones((m,n))-g
+
+def dilation(a, size1, size2):
+  erod_sse = np.ones((size1,size2))
+  
+  mn = np.shape(a)
+  m = mn[0]
+  n = mn[1]
+  g = np.zeros((m,n))
+  a = (255-a)/255
+
+  for i in range(m):
+    for j in range(n):
+      sum = 0
+      for row in range(size1):
+        for col in range(size2):
+          p = int(i-(size1-1)/2-1+row)
+          q = int(j-(size2-1)/2-1+col)
+                    
+          if p<0 or p>=m or q<0 or q>=n: # out of image bounds
+            continue
+                   
+          else:
+            sum =sum+a[p,q]*erod_sse[row,col]
+  
+          if sum >= size1:
+            g[i,j] = 255 # assign to output val
+  
+  return 255*np.ones((m,n))-g
 
 def line_coords(coords):
     '''
@@ -509,7 +565,7 @@ def plot_segments(binary_image, orig_image):
   imgplot = plt.imshow(binary_image, cmap='grey')
   plt.title("characters")
 
-
+  
   line_patches = [] # for overlaying line detection
   text_detected = [] # string of text found
   
@@ -524,6 +580,7 @@ def plot_segments(binary_image, orig_image):
     char_prev = char_borders[0][2]# end of previos character
     
     for char in char_borders:
+      
 
       # add in spaces where applicable
       if space_i != -1 and spaces and (spaces[space_i] <= char[2] and spaces[space_i] > char_prev):
@@ -535,9 +592,9 @@ def plot_segments(binary_image, orig_image):
       
       char_prev = char[3] # update prevous character end
       char_patches.append(Rectangle([char[2], char[0]], char[3]-char[2], char[1]-char[0], fill=False))
-
+      
       char_im = char_seg_2_28(orig_image, char) # get image to input to model
-      prediction = model.predict(char_im.reshape(-1, 28,28,1)/255.0)
+      prediction = model.predict(char_im.reshape(-1, 28,28,1)/255.0, verbose=0)
       c = np.argmax(prediction) # label assigned to detected character
 
       # conver to ascii value
@@ -568,7 +625,7 @@ def plot_segments(binary_image, orig_image):
       elif(c==67):
         new_c = ord('?')
 
-
+    
       # uncomment if you want to see character image
       # img = plt.imshow(char_im, cmap='grey')
       # plt.title(f'The result is likely: {chr(new_c)}')
@@ -580,6 +637,7 @@ def plot_segments(binary_image, orig_image):
 
     # end of line
     text_detected.append('\n')
+    
 
     char_collection = PatchCollection(char_patches, facecolor='none', ec='red', linewidth=1) # for plotting space locations
     
@@ -641,8 +699,6 @@ def contextual_correction(char, position_in_word, word_position_in_line):
     return char
 
 
-
-
 def reconstruct_text_with_corrections(text_detected):
     """
     Reconstructs the final text with corrections:
@@ -679,6 +735,7 @@ def reconstruct_text_with_corrections(text_detected):
 image=Image.open(image_path)# input image location
 image=np.asarray(image)
 
+
 # plot processed images
 fig = plt.figure()
 ax1 = plt.subplot(1,2,1)
@@ -687,16 +744,19 @@ plt.title("Original")
 
 gray_image=grayscale(image) # rgb to grayscale conversion
 
-ax1 = plt.subplot(1,2,2)
-imgplot = plt.imshow(gray_image, cmap='grey')
-plt.title("Greyscale")
 
 binary_image = binary(gray_image)
 
-plot_segments(binary_image, gray_image)
+new_image = dilation(binary_image, 4,4)
+new_image = erosion(binary_image, 2,2)
 
 
+ax1 = plt.subplot(1,2,2)
+imgplot = plt.imshow(new_image, cmap='grey')
+plt.title("Pre-processed")
+plt.show()
 
+plot_segments(new_image, gray_image)
 
 
 # Read the saved text
