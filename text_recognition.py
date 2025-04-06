@@ -746,6 +746,11 @@ gray_image=grayscale(image) # rgb to grayscale conversion
 
 
 binary_image = binary(gray_image)
+erod_image = erosion(binary_image, 1)
+
+ax1 = plt.subplot(1,2,2)
+imgplot = plt.imshow(binary_image, cmap='grey')
+plt.title("binary")
 
 new_image = dilation(binary_image, 4,4)
 new_image = erosion(binary_image, 2,2)
