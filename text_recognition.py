@@ -146,7 +146,7 @@ def correct_text(ocr_text):
 
     return text
 
-image_path = 'images/PandP_typed_nonserif.jpeg' #path to image
+image_path = 'images/PandP_typed.jpeg' #path to image
 model = tf.keras.models.load_model('models/charCNN.keras') #path to model
 
 def grayscale(a):
@@ -744,16 +744,14 @@ plt.title("Original")
 
 gray_image=grayscale(image) # rgb to grayscale conversion
 
-
 binary_image = binary(gray_image)
-erod_image = erosion(binary_image, 1)
 
 ax1 = plt.subplot(1,2,2)
 imgplot = plt.imshow(binary_image, cmap='grey')
 plt.title("binary")
 
-new_image = dilation(binary_image, 4,4)
-new_image = erosion(binary_image, 2,2)
+new_image = dilation(binary_image, 3,3)
+new_image = erosion(new_image, 3,3)
 
 
 ax1 = plt.subplot(1,2,2)
