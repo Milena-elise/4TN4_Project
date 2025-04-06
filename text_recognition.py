@@ -180,6 +180,11 @@ def binary(a, T=150):# takes np array image
   return m
 
 def erosion(a, size1, size2):
+  '''
+  image erosion
+  convolves images with size 1 by size 2 matrix
+  a - input image
+  '''
   erod_sse = np.ones((size1,size2))
   
   mn = np.shape(a)
@@ -208,6 +213,12 @@ def erosion(a, size1, size2):
   return 255*np.ones((m,n))-g
 
 def dilation(a, size1, size2):
+  '''
+  modified image dilation
+  - result of convolution with sse must be at least size 1 (instead of 1)
+  convolves images with size 1 by size 2 matrix
+  a - image
+  '''
   erod_sse = np.ones((size1,size2))
   
   mn = np.shape(a)
