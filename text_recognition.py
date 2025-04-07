@@ -1,16 +1,11 @@
 import numpy as np
-import cv2 as cv
-from skimage import io
-import os
 from PIL import Image
-from PIL import ImageOps
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib.lines import Line2D
 from matplotlib.collections import PatchCollection
 import tensorflow as tf
 from gtts import gTTS
-import os
 
 import nltk
 from nltk.corpus import words
@@ -145,9 +140,6 @@ def correct_text(ocr_text):
     text = ''.join(chars)
 
     return text
-
-image_path = 'images/PandP_typed.jpeg' #path to image
-model = tf.keras.models.load_model('models/charCNN.keras') #path to model
 
 def grayscale(a):
   '''
@@ -409,7 +401,7 @@ def char_segment(line, image):
     if flag==1: # col had text somewhere
       
       char_width += 1
-      
+      '''
       # check for letters very close together
       if ((first_row > last_row_prev and first_row > first_row_prev) or (last_row < last_row_prev and last_row < first_row_prev)): # still needs to seperate My and ay
  
@@ -421,6 +413,7 @@ def char_segment(line, image):
               char_width_sum += char_width
               char_width = 0
               space_count += 1
+      '''
       try:
         if a[first_row][i] <200:  # if text in the row to the below
           coo.append([first_row, i]) # add to list of edge changed
@@ -570,7 +563,7 @@ def plot_segments(binary_image, orig_image):
   Segment characters
   '''
 
-  # character segment plot
+  #character segment plot
   fig2 = plt.figure()
   ax4 = plt.subplot(1,2,2)
   imgplot = plt.imshow(binary_image, cmap='grey')
@@ -584,6 +577,7 @@ def plot_segments(binary_image, orig_image):
  
   for line_rect in line_borders:
     char_borders, spaces = char_segment(line_rect, binary_image)
+
     
     char_patches = [] # for plotting character segments
     space_i = 0 # for iterating through spaces in line
@@ -743,6 +737,9 @@ def reconstruct_text_with_corrections(text_detected):
 
 
 ####################################################################### main code
+
+image_path = 'images/PandP_typed.jpeg' #path to image
+model = tf.keras.models.load_model('models/charCNN.keras') #path to model
 image=Image.open(image_path)# input image location
 image=np.asarray(image)
 
@@ -755,15 +752,15 @@ plt.title("Original")
 
 gray_image=grayscale(image) # rgb to grayscale conversion
 
-binary_image = binary(gray_image)
+binary_image = binary(gray_image, T=200)
+
 
 ax1 = plt.subplot(1,2,2)
 imgplot = plt.imshow(binary_image, cmap='grey')
 plt.title("binary")
 
-new_image = dilation(binary_image, 3,3)
+new_image = dilation(binary_image, 3,2)
 new_image = erosion(new_image, 3,3)
-
 
 ax1 = plt.subplot(1,2,2)
 imgplot = plt.imshow(new_image, cmap='grey')
